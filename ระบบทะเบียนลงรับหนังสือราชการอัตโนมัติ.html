@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบงานสารบรรณอิเล็กทรอนิกส์ - อบต.วังพงก์</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue.js 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Google Fonts Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* แอนิเมชันน้องส่ายหน้าเมื่อกรอกเลขซ้ำ (Shake Animation) */
+    @keyframes headShake {
+      0% { transform: translateX(0); }
+      15% { transform: translateX(-8px) rotate(-2.5deg); }
+      30% { transform: translateX(7px) rotate(2.5deg); }
+      45% { transform: translateX(-5px) rotate(-1.5deg); }
+      60% { transform: translateX(4px) rotate(1.5deg); }
+      75% { transform: translateX(-2px) rotate(0); }
+      100% { transform: translateX(0); }
+    }
+    .shake-animation {
+      animation: headShake 0.6s ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+
+<div id="app" class="flex flex-col min-h-screen">
+  
+  <!-- Header Bar -->
+  <header class="bg-emerald-700 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-white text-emerald-800 font-extrabold flex items-center justify-center text-lg shadow-sm">
+          วพ
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold leading-tight">ระบบสารบรรณอิเล็กทรอนิกส์</h1>
+          <p class="text-xs text-emerald-200">องค์การบริหารส่วนตำบลวังพงก์</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <span class="text-xs text-emerald-100 hidden md:inline">ปีงบประมาณ:</span>
+        <span class="bg-emerald-800/80 px-2.5 py-1 rounded-lg text-xs font-semibold border border-emerald-600">
+          พ.ศ. {{ currentBuddhistYear }}
+        </span>
+      </div>
+    </div>
+
+    <!-- แถบสลับระบบงาน 4 โมดูลหลัก -->
+    <div class="bg-emerald-800/90 border-t border-emerald-600/60">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-2 overflow-x-auto py-1.5 scrollbar-none">
+        <button 
+          v-for="mod in modules" 
+          :key="mod.id"
+          @click="changeModule(mod.id)"
+          :class="[
+            'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition flex items-center space-x-1.5',
+            activeModule === mod.id 
+              ? 'bg-white text-emerald-800 shadow font-semibold' 
+              : 'text-emerald-100 hover:bg-emerald-700/60'
+          ]"
+        >
+          <span>{{ mod.icon }}</span>
+          <span>{{ mod.name }}</span>
+          <span 
+            class="ml-1 text-[11px] px-1.5 py-0.2 rounded-full" 
+            :class="activeModule === mod.id ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-900/60 text-emerald-200'"
+          >
+            {{ getModuleCount(mod.id) }}
+          </span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+    
+    <!-- แดชบอร์ดสรุปตัวเลข (Dashboard KPI) -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl font-bold">
+          📥
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 font-medium">หนังสือรับทั้งหมด</div>
+          <div class="text-xl sm:text-2xl font-bold text-slate-800">{{ getModuleCount('inbound') }} <span class="text-xs font-normal text-slate-400">เรื่อง</span></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+        <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl font-bold">
+          📤
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 font-medium">หนังสือส่งทั้งหมด</div>
+          <div class="text-xl sm:text-2xl font-bold text-teal-700">{{ getModuleCount('outbound') }} <span class="text-xs font-normal text-slate-400">เรื่อง</span></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+          📝
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 font-medium">บันทึกข้อความ</div>
+          <div class="text-xl sm:text-2xl font-bold text-indigo-700">{{ getModuleCount('memo') }} <span class="text-xs font-normal text-slate-400">เรื่อง</span></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl font-bold">
+          📜
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 font-medium">ประกาศ / คำสั่ง</div>
+          <div class="text-xl sm:text-2xl font-bold text-amber-700">{{ getModuleCount('decree') }} <span class="text-xs font-normal text-slate-400">ฉบับ</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- สรุปด่วน & ลับ ของโมดูลปัจจุบัน -->
+    <div class="flex items-center justify-between text-xs px-1 text-slate-500">
+      <div class="flex items-center space-x-3">
+        <span>สถานะโมดูล <b class="text-slate-700">{{ currentModuleConfig.title }}</b>:</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+          ⚡ เร่งด่วน {{ currentModuleStats.urgent }} เรื่อง
+        </span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-medium">
+          🔒 หนังสือลับ {{ currentModuleStats.secret }} เรื่อง
+        </span>
+      </div>
+    </div>
+
+    <!-- แบบฟอร์มลงทะเบียน -->
+    <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+      <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/70 flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <span>{{ currentModuleConfig.icon }}</span>
+            <span>ลงทะเบียน{{ currentModuleConfig.title }}</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">{{ currentModuleConfig.desc }}</p>
+        </div>
+        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          อบต.วังพงก์
+        </span>
+      </div>
+
+      <form @submit.prevent="saveRecord" class="p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          <!-- เลขทะเบียน (มี Shake Effect + ล็อกถ้าซ้ำ) -->
+          <div class="relative">
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              {{ currentModuleConfig.numberLabel }} <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              v-model="form.docNumber" 
+              @input="checkDuplicate"
+              :class="[
+                'w-full px-3.5 py-2 rounded-xl border text-sm transition duration-150 focus:outline-none focus:ring-2',
+                isDuplicate 
+                  ? 'border-rose-400 bg-rose-50/50 text-rose-800 focus:ring-rose-200 shake-animation' 
+                  : 'border-slate-300 bg-white focus:ring-emerald-200 focus:border-emerald-500'
+              ]"
+              :placeholder="currentModuleConfig.numberPlaceholder" 
+              required
+            >
+            <!-- ข้อความเตือนน้องส่ายหน้า -->
+            <div v-if="isDuplicate" class="mt-1 flex items-center text-xs text-rose-600 font-medium">
+              <span class="mr-1 text-sm">🙅‍♂️</span> เลขนี้มีอยู่ในระบบแล้ว กรุณาตรวจสอบใหม่!
+            </div>
+            <div v-else class="text-[11px] text-slate-400 mt-1">เลขลำดับต่อเนื่องตามสมุดทะเบียน</div>
+          </div>
+
+          <!-- วันที่-เวลา -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              วันที่-เวลาบันทึก <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="datetime-local" 
+              v-model="form.docDate" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+              required
+            >
+          </div>
+
+          <!-- ประเภทเอกสาร -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              หมวดหมู่ / ประเภท <span class="text-rose-500">*</span>
+            </label>
+            <select 
+              v-model="form.category" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+            >
+              <option v-for="cat in currentModuleConfig.categories" :key="cat" :value="cat">
+                {{ cat }}
+              </option>
+            </select>
+          </div>
+
+          <!-- ชั้นความเร็ว (ความเร่งด่วน) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              ชั้นความเร็ว (ความเร่งด่วน) <span class="text-rose-500">*</span>
+            </label>
+            <select 
+              v-model="form.urgency" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              :class="{
+                'text-rose-600 bg-rose-50/40': form.urgency === 'ด่วนที่สุด',
+                'text-amber-600 bg-amber-50/40': form.urgency === 'ด่วน' || form.urgency === 'ด่วนมาก',
+                'text-slate-700': form.urgency === 'ปกติ'
+              }"
+            >
+              <option value="ปกติ">ปกติ</option>
+              <option value="ด่วน">⚡ ด่วน (ปฏิบัติเร็วกว่าปกติ)</option>
+              <option value="ด่วนมาก">⚡⚡ ด่วนมาก (ปฏิบัติโดยเร็ว)</option>
+              <option value="ด่วนที่สุด">🚨 ด่วนที่สุด (ปฏิบัติทันทีที่ได้รับ)</option>
+            </select>
+          </div>
+
+          <!-- ชั้นความลับ -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              ชั้นความลับ <span class="text-rose-500">*</span>
+            </label>
+            <select 
+              v-model="form.secrecy" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              :class="{
+                'text-rose-700 bg-rose-50': form.secrecy !== 'ปกติ',
+                'text-slate-700': form.secrecy === 'ปกติ'
+              }"
+            >
+              <option value="ปกติ">ปกติ (เปิดเผยได้)</option>
+              <option value="ลับ">🔒 ลับ</option>
+              <option value="ลับมาก">🔒🔒 ลับมาก</option>
+              <option value="ลับที่สุด">🛑 ลับที่สุด</option>
+            </select>
+          </div>
+
+          <!-- เลขที่หนังสือต้นฉบับ / รหัสหนังสือ -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              ที่ (เลขที่หนังสือ) <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              v-model="form.refNumber" 
+              :placeholder="currentModuleConfig.refPlaceholder" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+              required
+            >
+          </div>
+
+          <!-- จาก (ต้นทาง) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              จาก (ต้นทาง) <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              v-model="form.sender" 
+              :placeholder="currentModuleConfig.senderPlaceholder" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+              required
+            >
+          </div>
+
+          <!-- ถึง (ปลายทาง) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              ถึง (ปลายทาง) <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              v-model="form.receiver" 
+              :placeholder="currentModuleConfig.receiverPlaceholder" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+              required
+            >
+          </div>
+
+          <!-- กองที่รับผิดชอบ -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              กอง/สำนักที่รับผิดชอบ <span class="text-rose-500">*</span>
+            </label>
+            <select 
+              v-model="form.division" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+            >
+              <option value="สำนักปลัด อบต.">สำนักปลัด อบต.</option>
+              <option value="กองคลัง">กองคลัง</option>
+              <option value="กองช่าง">กองช่าง</option>
+              <option value="กองการศึกษา ศาสนาและวัฒนธรรม">กองการศึกษา ศาสนาและวัฒนธรรม</option>
+              <option value="กองสาธารณสุขและสิ่งแวดล้อม">กองสาธารณสุขและสิ่งแวดล้อม</option>
+              <option value="หน่วยตรวจสอบภายใน">หน่วยตรวจสอบภายใน</option>
+            </select>
+          </div>
+
+          <!-- เรื่อง -->
+          <div class="md:col-span-3">
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              เรื่อง (ชื่อเรื่องหนังสือ) <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              v-model="form.subject" 
+              placeholder="ระบุชื่อเรื่องให้ชัดเจน ครบถ้วน เพื่อความสะดวกในการสืบค้น" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+              required
+            >
+          </div>
+
+          <!-- หมายเหตุ / การสั่งการ -->
+          <div class="md:col-span-3">
+            <label class="block text-xs font-medium text-slate-700 mb-1">
+              หมายเหตุ / บันทึกสั่งการเพิ่มเติม
+            </label>
+            <input 
+              type="text" 
+              v-model="form.notes" 
+              placeholder="เช่น การส่งต่อเรื่อง, กำหนดส่งงาน, ข้อสั่งการของผู้บริหาร (ถ้ามี)" 
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+            >
+          </div>
+
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex justify-end pt-3 border-t border-slate-100">
+          <button 
+            type="submit" 
+            :disabled="isDuplicate" 
+            :class="[
+              'px-6 py-2.5 rounded-xl font-medium text-sm text-white shadow-sm transition flex items-center space-x-2',
+              isDuplicate 
+                ? 'bg-slate-300 cursor-not-allowed' 
+                : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 shadow-emerald-600/20'
+            ]"
+          >
+            <span>💾 บันทึก{{ currentModuleConfig.title }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ตารางแสดงรายการ -->
+    <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h2 class="text-base font-semibold text-slate-800">
+            สมุดทะเบียน{{ currentModuleConfig.title }}
+          </h2>
+          <p class="text-xs text-slate-500">แสดงรายการที่ลงทะเบียนไว้ในหมวดนี้ทั้งหมด</p>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="ค้นหาเลข, เรื่อง, ที่, ต้นทาง..." 
+            class="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs w-64 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          >
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="bg-slate-50 text-slate-500 border-b border-slate-100 uppercase tracking-wider font-semibold">
+            <tr>
+              <th class="px-4 py-3">{{ currentModuleConfig.numberLabel }}</th>
+              <th class="px-4 py-3">วัน-เวลา</th>
+              <th class="px-4 py-3">ความเร็ว / ลับ</th>
+              <th class="px-4 py-3">ประเภท</th>
+              <th class="px-4 py-3">ที่หนังสือ</th>
+              <th class="px-4 py-3">เรื่อง</th>
+              <th class="px-4 py-3">จาก</th>
+              <th class="px-4 py-3">ถึง</th>
+              <th class="px-4 py-3">กองเจ้าของเรื่อง</th>
+              <th class="px-4 py-3 text-center">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="item in currentModuleFilteredList" :key="item.id" class="hover:bg-slate-50/80 transition">
+              <td class="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
+                {{ item.docNumber }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-slate-500">
+                {{ formatDateTime(item.docDate) }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap space-x-1">
+                <!-- Urgency Tag -->
+                <span 
+                  class="px-2 py-0.5 rounded text-[11px] font-semibold"
+                  :class="{
+                    'bg-slate-100 text-slate-600': item.urgency === 'ปกติ',
+                    'bg-amber-100 text-amber-800': item.urgency === 'ด่วน',
+                    'bg-orange-100 text-orange-800': item.urgency === 'ด่วนมาก',
+                    'bg-rose-100 text-rose-800 font-bold': item.urgency === 'ด่วนที่สุด'
+                  }"
+                >
+                  {{ item.urgency }}
+                </span>
+                <!-- Secrecy Tag -->
+                <span 
+                  v-if="item.secrecy !== 'ปกติ'"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-600 text-white"
+                >
+                  {{ item.secrecy }}
+                </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px]">
+                  {{ item.category }}
+                </span>
+              </td>
+              <td class="px-4 py-3 font-medium text-slate-700 whitespace-nowrap">
+                {{ item.refNumber }}
+              </td>
+              <td class="px-4 py-3 text-slate-800 max-w-xs truncate" :title="item.subject">
+                {{ item.subject }}
+              </td>
+              <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
+                {{ item.sender }}
+              </td>
+              <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
+                {{ item.receiver }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px]">
+                  {{ item.division }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-center whitespace-nowrap">
+                <button 
+                  @click="deleteRecord(item.id)" 
+                  class="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 rounded"
+                  title="ลบรายการ"
+                >
+                  🗑️
+                </button>
+              </td>
+            </tr>
+            <tr v-if="currentModuleFilteredList.length === 0">
+              <td colspan="10" class="text-center py-10 text-slate-400">
+                ยังไม่มีข้อมูลในสมุดทะเบียน{{ currentModuleConfig.title }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+    งานสารบรรณ กองงานอำนวยการ องค์การบริหารส่วนตำบลวังพงก์
+  </footer>
+</div>
+
+<script>
+  const { createApp, ref, computed } = Vue;
+
+  createApp({
+    setup() {
+      const activeModule = ref('inbound');
+      const searchQuery = ref('');
+      const isDuplicate = ref(false);
+      const currentBuddhistYear = new Date().getFullYear() + 543;
+
+      // รายการระบบงานทั้ง 4 โมดูล
+      const modules = [
+        { id: 'inbound', name: 'หนังสือรับ', icon: '📥' },
+        { id: 'outbound', name: 'หนังสือส่ง', icon: '📤' },
+        { id: 'memo', name: 'บันทึกข้อความ', icon: '📝' },
+        { id: 'decree', name: 'ประกาศ / คำสั่ง', icon: '📜' }
+      ];
+
+      // การตั้งค่าตามประเภทงาน
+      const moduleConfigs = {
+        inbound: {
+          title: 'หนังสือรับ',
+          icon: '📥',
+          desc: 'ลงทะเบียนรับหนังสือราชการจากภายนอกและภายในหน่วยงาน',
+          numberLabel: 'เลขทะเบียนรับ',
+          numberPlaceholder: 'เช่น 001/2569',
+          refPlaceholder: 'เช่น มท 0808.2/ว 1234',
+          senderPlaceholder: 'เช่น อำเภอปราณบุรี / เอกชน',
+          receiverPlaceholder: 'เช่น นายก อบต. วังพงก์ / ปลัด อบต.',
+          categories: ['ภายนอก', 'ภายใน', 'ประทับตรา', 'หนังสือเวียน']
+        },
+        outbound: {
+          title: 'หนังสือส่ง',
+          icon: '📤',
+          desc: 'ออกเลขหนังสือส่งและจัดส่งไปยังหน่วยงานภายนอก/ส่วนราชการอื่น',
+          numberLabel: 'เลขทะเบียนส่ง',
+          numberPlaceholder: 'เช่น 001/2569',
+          refPlaceholder: 'เช่น ปข 78201/ว 12',
+          senderPlaceholder: 'เช่น อบต.วังพงก์ / สำนักปลัด',
+          receiverPlaceholder: 'เช่น ผู้ว่าราชการจังหวัด / นายอำเภอ',
+          categories: ['หนังสือภายนอก', 'หนังสือประทับตรา', 'หนังสือส่งด่วน', 'หนังสือสั่งการ']
+        },
+        memo: {
+          title: 'บันทึกข้อความ',
+          icon: '📝',
+          desc: 'ออกเลขทะเบียนบันทึกข้อความสำหรับติดต่อราชการภายใน อบต.วังพงก์',
+          numberLabel: 'เลขทะเบียนบันทึก',
+          numberPlaceholder: 'เช่น บันทึก 001/2569',
+          refPlaceholder: 'เช่น อบต.วพ 52101/....',
+          senderPlaceholder: 'เช่น ผู้อำนวยการกองคลัง / หัวหน้าสำนักปลัด',
+          receiverPlaceholder: 'เช่น ปลัด อบต.วังพงก์ / นายก อบต.วังพงก์',
+          categories: ['ขออนุมัติ', 'รายงานผล', 'ขอความอนุเคราะห์', 'แจ้งประสานงาน']
+        },
+        decree: {
+          title: 'ประกาศ / คำสั่ง',
+          icon: '📜',
+          desc: 'ลงทะเบียนประกาศและคำสั่งขององค์การบริหารส่วนตำบลวังพงก์',
+          numberLabel: 'เลขที่คำสั่ง/ประกาศ',
+          numberPlaceholder: 'เช่น 001/2569',
+          refPlaceholder: 'เช่น คำสั่ง อบต.วังพงก์ ที่...',
+          senderPlaceholder: 'เช่น องค์การบริหารส่วนตำบลวังพงก์',
+          receiverPlaceholder: 'เช่น ข้าราชการ/พนักงานจ้าง / ประชาชนทั่วไป',
+          categories: ['คำสั่ง อบต.', 'ประกาศ อบต.', 'ประกาศจัดซื้อจัดจ้าง', 'ระเบียบ/ข้อบัญญัติ']
+        }
+      };
+
+      // ฐานข้อมูลตัวอย่างเริ่มต้น
+      const initialDb = {
+        inbound: [
+          {
+            id: 101,
+            docNumber: '001/2569',
+            docDate: '2026-10-01T09:30',
+            category: 'ภายนอก',
+            urgency: 'ด่วนที่สุด',
+            secrecy: 'ปกติ',
+            refNumber: 'ปข 0023.1/ว 456',
+            sender: 'ที่ว่าการอำเภอปราณบุรี',
+            receiver: 'นายก อบต. วังพงก์',
+            division: 'สำนักปลัด อบต.',
+            subject: 'การเตรียมความพร้อมรับสถานการณ์อุทกภัยในช่วงฤดูมรสุม',
+            notes: 'แจ้งงานป้องกันและบรรเทาสาธารณภัยด่วน'
+          }
+        ],
+        outbound: [
+          {
+            id: 201,
+            docNumber: '001/2569',
+            docDate: '2026-10-02T14:15',
+            category: 'หนังสือภายนอก',
+            urgency: 'ปกติ',
+            secrecy: 'ปกติ',
+            refNumber: 'ปข 78201/ว 001',
+            sender: 'อบต.วังพงก์',
+            receiver: 'สำนักงานท้องถิ่นอำเภอปราณบุรี',
+            division: 'กองคลัง',
+            subject: 'ส่งรายงานงบการเงินประจำเดือน กันยายน',
+            notes: 'แนบไฟล์รายงาน 1 ชุด'
+          }
+        ],
+        memo: [
+          {
+            id: 301,
+            docNumber: '001/2569',
+            docDate: '2026-10-02T10:00',
+            category: 'ขออนุมัติ',
+            urgency: 'ด่วน',
+            secrecy: 'ปกติ',
+            refNumber: 'อบต.วพ 52101/01',
+            sender: 'กองช่าง',
+            receiver: 'นายก อบต. วังพงก์',
+            division: 'กองช่าง',
+            subject: 'ขออนุมัติซ่อมแซมถนนลูกรังสายบ้านหนองหอย หมู่ที่ 3',
+            notes: 'งบประมาณประมาณการ 45,000 บาท'
+          }
+        ],
+        decree: [
+          {
+            id: 401,
+            docNumber: '001/2569',
+            docDate: '2026-10-01T08:30',
+            category: 'คำสั่ง อบต.',
+            urgency: 'ปกติ',
+            secrecy: 'ปกติ',
+            refNumber: 'คำสั่ง อบต.วังพงก์ ที่ 1/2569',
+            sender: 'องค์การบริหารส่วนตำบลวังพงก์',
+            receiver: 'พนักงานและเจ้าหน้าที่ อบต.วังพงก์',
+            division: 'สำนักปลัด อบต.',
+            subject: 'แต่งตั้งคณะกรรมการจัดทำแผนพัฒนาท้องถิ่น',
+            notes: 'มีผลบังคับใช้ตั้งแต่วันที่ลงนาม'
+          }
+        ]
+      };
+
+      // โหลดข้อมูลจาก LocalStorage
+      const savedStorage = localStorage.getItem('wangpong_edoc_db');
+      const db = ref(savedStorage ? JSON.parse(savedStorage) : initialDb);
+
+      // โครงสร้างฟอร์ม
+      const form = ref({
+        docNumber: '',
+        docDate: new Date().toISOString().slice(0, 16),
+        category: moduleConfigs[activeModule.value].categories[0],
+        urgency: 'ปกติ',
+        secrecy: 'ปกติ',
+        refNumber: '',
+        sender: '',
+        receiver: '',
+        division: 'สำนักปลัด อบต.',
+        subject: '',
+        notes: ''
+      });
+
+      const currentModuleConfig = computed(() => moduleConfigs[activeModule.value]);
+
+      // ตรวจสอบเลขซ้ำในโมดูลปัจจุบัน
+      const checkDuplicate = () => {
+        if (!form.value.docNumber.trim()) {
+          isDuplicate.value = false;
+          return;
+        }
+        const currentList = db.value[activeModule.value] || [];
+        const isFound = currentList.some(
+          item => item.docNumber.trim().toLowerCase() === form.value.docNumber.trim().toLowerCase()
+        );
+        isDuplicate.value = isFound;
+      };
+
+      // สลับโมดูล
+      const changeModule = (modId) => {
+        activeModule.value = modId;
+        isDuplicate.value = false;
+        // เซ็ตค่าเริ่มต้นหมวดหมู่ให้เข้ากับโมดูลใหม่
+        form.value.category = moduleConfigs[modId].categories[0];
+        checkDuplicate();
+      };
+
+      // บันทึกเอกสาร
+      const saveRecord = () => {
+        checkDuplicate();
+        if (isDuplicate.value) return;
+
+        const newRecord = {
+          id: Date.now(),
+          ...form.value
+        };
+
+        if (!db.value[activeModule.value]) {
+          db.value[activeModule.value] = [];
+        }
+
+        db.value[activeModule.value].unshift(newRecord);
+        localStorage.setItem('wangpong_edoc_db', JSON.stringify(db.value));
+
+        // รีเซ็ตเฉพาะช่องที่จำเป็น
+        form.value.docNumber = '';
+        form.value.refNumber = '';
+        form.value.subject = '';
+        form.value.notes = '';
+        form.value.urgency = 'ปกติ';
+        form.value.secrecy = 'ปกติ';
+        form.value.docDate = new Date().toISOString().slice(0, 16);
+      };
+
+      // ลบรายการ
+      const deleteRecord = (id) => {
+        if (confirm('ยืนยันที่จะลบรายการนี้ออกจากทะเบียนหรือไม่?')) {
+          db.value[activeModule.value] = db.value[activeModule.value].filter(item => item.id !== id);
+          localStorage.setItem('wangpong_edoc_db', JSON.stringify(db.value));
+          checkDuplicate();
+        }
+      };
+
+      // จำนวนเอกสารแต่ละระบบ
+      const getModuleCount = (modId) => {
+        return (db.value[modId] || []).length;
+      };
+
+      // รายการกรองค้นหาตามโมดูล
+      const currentModuleFilteredList = computed(() => {
+        const list = db.value[activeModule.value] || [];
+        if (!searchQuery.value.trim()) return list;
+
+        const q = searchQuery.value.toLowerCase();
+        return list.filter(item => 
+          item.docNumber.toLowerCase().includes(q) ||
+          item.refNumber.toLowerCase().includes(q) ||
+          item.subject.toLowerCase().includes(q) ||
+          item.sender.toLowerCase().includes(q) ||
+          item.receiver.toLowerCase().includes(q)
+        );
+      });
+
+      // สถิติเร่งด่วนและลับในโมดูลที่เปิดอยู่
+      const currentModuleStats = computed(() => {
+        const list = db.value[activeModule.value] || [];
+        const urgent = list.filter(item => item.urgency !== 'ปกติ').length;
+        const secret = list.filter(item => item.secrecy !== 'ปกติ').length;
+        return { urgent, secret };
+      });
+
+      const formatDateTime = (val) => {
+        if (!val) return '-';
+        const d = new Date(val);
+        return d.toLocaleDateString('th-TH', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      };
+
+      return {
+        activeModule,
+        modules,
+        currentModuleConfig,
+        currentBuddhistYear,
+        form,
+        searchQuery,
+        isDuplicate,
+        currentModuleFilteredList,
+        currentModuleStats,
+        changeModule,
+        checkDuplicate,
+        saveRecord,
+        deleteRecord,
+        getModuleCount,
+        formatDateTime
+      };
+    }
+  }).mount('#app');
+</script>
+
+</body>
+</html>
